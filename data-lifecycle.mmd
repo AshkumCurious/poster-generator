@@ -1,0 +1,41 @@
+sequenceDiagram
+  participant HR
+  participant App
+  participant DB as SQLite
+  participant Drive
+  participant Gmail
+  participant Contributor
+
+  HR->>App: Sign in with Google
+  App->>DB: UPSERT google_accounts
+  App->>Drive: Ensure Farewell Posters folder
+  App->>DB: Save drive_root_folder_id
+
+  HR->>App: New farewell
+  App->>Drive: Create event folder
+  App->>DB: INSERT events
+  App->>DB: INSERT contributors
+
+  HR->>App: Send invites
+  App->>Gmail: Email upload link
+  App->>DB: Set invited_at
+
+  Contributor->>App: POST upload photo
+  App->>Drive: Store file in event folder
+  App->>DB: Set uploaded_at if email matched
+
+  HR->>App: Open poster builder
+  App->>DB: GET poster_state
+  App->>Drive: List images in folder
+  HR->>App: Arrange and Save
+  App->>DB: UPSERT layout_json
+
+  HR->>App: Export PDF
+  Note over App: PDF is built in the browser - not stored
+
+  HR->>App: Close submissions
+  App->>DB: Set status closed
+
+  HR->>App: Delete farewell
+  App->>Drive: Trash event folder
+  App->>DB: DELETE event rows

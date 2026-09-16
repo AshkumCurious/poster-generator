@@ -1,0 +1,35 @@
+erDiagram
+  google_accounts {
+    string email PK
+    string refresh_token
+    string access_token
+    int expiry_date
+    string drive_root_folder_id
+    string updated_at
+  }
+  events {
+    string id PK
+    string person_name
+    string title
+    string message
+    string template_id
+    string folder_id
+    string status
+    string owner_email FK
+    string created_at
+  }
+  contributors {
+    string id PK
+    string event_id FK
+    string email
+    string invited_at
+    string uploaded_at
+  }
+  poster_state {
+    string event_id PK
+    string layout_json
+    string updated_at
+  }
+  google_accounts ||--o{ events : owns
+  events ||--o{ contributors : has
+  events ||--o| poster_state : has

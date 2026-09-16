@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+*.tsbuildinfo
+
+# Env and secrets — keep .env.example
+.env
+.env.*
+!.env.example
+
+# Local SQLite (contains Google refresh tokens)
+data/*.db
+data/*.db-*
+data/*.sqlite
+data/*.sqlite3
+
+# Google credential / token dumps
+client_secret*.json
+*-service-account*.json
+credentials.json
+token.json
+*.pem
+*.key
+
+# Logs and debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Vercel / deploy leftovers
+.vercel
+.railway
