@@ -1,6 +1,6 @@
 import formidable from 'formidable';
 import fs from 'fs';
-import db from '../../../../lib/db';
+import { getEvent } from '../../../../lib/db';
 import { isSessionValid } from '../../../../lib/auth';
 import { listFolderImages, uploadFileToFolder } from '../../../../lib/drive';
 import { requireEventOwner } from '../../../../lib/google';
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   if (!isSessionValid(req.headers.cookie)) return res.status(401).json({ error: 'Not logged in.' });
 
   const { eventId } = req.query;
-  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
+  const event = await getEvent(eventId);
   if (!event) return res.status(404).json({ error: 'Event not found.' });
 
   let ownerEmail;

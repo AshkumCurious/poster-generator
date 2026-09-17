@@ -1,4 +1,4 @@
-import db from '../../../../lib/db';
+import { deleteEvent, getEvent, listContributors } from '../../../../lib/db';
 import { getSession } from '../../../../lib/auth';
 import { trashEventFolder } from '../../../../lib/drive';
 
@@ -7,13 +7,11 @@ export default async function handler(req, res) {
   if (!session) return res.status(401).json({ error: 'Not logged in.' });
 
   const { eventId } = req.query;
-  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
+  const event = await getEvent(eventId);
   if (!event) return res.status(404).json({ error: 'Event not found.' });
 
   if (req.method === 'GET') {
-    const contributors = db
-      .prepare('SELECT email, invited_at, uploaded_at FROM contributors WHERE event_id = ? ORDER BY email')
-      .all(eventId);
+    const contributors = await listContributors(eventId);
     return res.status(200).json({ event, contributors });
   }
 
@@ -28,12 +26,7 @@ export default async function handler(req, res) {
       console.error('Drive trash failed:', err);
     }
 
-    const wipe = db.transaction((id) => {
-      db.prepare('DELETE FROM contributors WHERE event_id = ?').run(id);
-      db.prepare('DELETE FROM poster_state WHERE event_id = ?').run(id);
-      db.prepare('DELETE FROM events WHERE id = ?').run(id);
-    });
-    wipe(eventId);
+    await deleteEvent(eventId);
 
     return res.status(200).json({ ok: true });
   }

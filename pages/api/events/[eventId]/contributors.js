@@ -1,5 +1,9 @@
-import { nanoid } from 'nanoid';
-import db from '../../../../lib/db';
+import {
+  getEvent,
+  insertContributors,
+  listContributors,
+  markContributorsInvited,
+} from '../../../../lib/db';
 import { isSessionValid } from '../../../../lib/auth';
 import { sendUploadInvites } from '../../../../lib/mailer';
 import { requireEventOwner } from '../../../../lib/google';
@@ -33,7 +37,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { eventId } = req.query;
-  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
+  const event = await getEvent(eventId);
   if (!event) return res.status(404).json({ error: 'Event not found.' });
   if (event.status !== 'open') {
     return res.status(400).json({ error: 'This event is closed for submissions.' });
@@ -54,23 +58,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Add at least one email.' });
   }
 
-  const existing = new Set(
-    db
-      .prepare('SELECT email FROM contributors WHERE event_id = ?')
-      .all(eventId)
-      .map((row) => row.email)
-  );
+  const existing = new Set((await listContributors(eventId)).map((row) => row.email));
   const added = emails.filter((email) => !existing.has(email));
   const skipped = emails.filter((email) => existing.has(email));
 
   if (added.length) {
-    const insertContributor = db.prepare(
-      'INSERT OR IGNORE INTO contributors (id, event_id, email) VALUES (?, ?, ?)'
-    );
-    const insertMany = db.transaction((rows) => {
-      for (const email of rows) insertContributor.run(nanoid(10), eventId, email);
-    });
-    insertMany(added);
+    await insertContributors(eventId, added);
   }
 
   let sent = 0;
@@ -85,21 +78,15 @@ export default async function handler(req, res) {
         uploadUrl,
         ownerEmail,
       });
-      const now = new Date().toISOString();
-      const markInvited = db.prepare(
-        'UPDATE contributors SET invited_at = ? WHERE event_id = ? AND email = ?'
+      await markContributorsInvited(
+        eventId,
+        results.filter((row) => !row.error).map((row) => row.email)
       );
-      const markMany = db.transaction((rows) => {
-        for (const row of rows) if (!row.error) markInvited.run(now, eventId, row.email);
-      });
-      markMany(results);
       failed = results.filter((row) => row.error);
       sent = results.length - failed.length;
     } catch (err) {
       console.error(err);
-      const contributors = db
-        .prepare('SELECT email, invited_at, uploaded_at FROM contributors WHERE event_id = ? ORDER BY email')
-        .all(eventId);
+      const contributors = await listContributors(eventId);
       return res.status(500).json({
         error: `People were added, but email sending failed: ${err.message}`,
         added: added.length,
@@ -111,9 +98,7 @@ export default async function handler(req, res) {
     }
   }
 
-  const contributors = db
-    .prepare('SELECT email, invited_at, uploaded_at FROM contributors WHERE event_id = ? ORDER BY email')
-    .all(eventId);
+  const contributors = await listContributors(eventId);
 
   res.status(200).json({
     added: added.length,

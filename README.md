@@ -2,14 +2,20 @@
 
 A small internal tool for HR to collect farewell notes and turn them into a printable poster.
 
-**Flow:** HR signs in with Google → app creates a Drive folder in that account and emails
-contributors an upload link → contributors drop in a photo of their note → HR arranges the
-photos anywhere on a blank poster → exports a print-ready PDF.
+## How to use
+
+1. **Sign in** with Google. Photos and invite emails use that account (Drive + Gmail).
+2. **Create a farewell.** Enter who is leaving, an internal title, the invite message, and teammate emails.
+3. **Send invites.** Each person gets an email with the upload link. If you forgot someone, add their email on the farewell page and they are invited too. You can also copy the upload link.
+4. **Teammates upload.** They open the link, add their name, email, and a photo of their note. Submissions stay open until you close them.
+5. **Collect extras.** On the poster builder you can add more photos yourself. Close submissions when you do not want new uploads.
+6. **Build the poster.** Drag photos onto the page, add coloured shapes if you need blocks or frames, then move, resize, and rotate items. Pick a page size (A4, A3, …) if needed.
+7. **Save and export.** Save the layout, then export a print-ready PDF.
 
 ## Stack
 
 - **Next.js** (pages router) — single app, frontend + API routes
-- **SQLite** via `better-sqlite3` — event/contributor metadata only (not images)
+- **Supabase Postgres** — event/contributor metadata and Google refresh tokens (not images)
 - **Google Drive API** (signed-in HR account) — image storage, one folder per event
 - **Gmail API** (same signed-in account) — invite emails
 - **html2canvas + jsPDF** — client-side PDF export of the poster
@@ -42,6 +48,10 @@ Event folders go inside it. Invites are sent from the same address.
 - `SESSION_SECRET` — any long random string (`openssl rand -hex 32`).
 - `NEXT_PUBLIC_BASE_URL` — where the app is hosted, no trailing slash. Must match the
   redirect URI origin.
+- `SUPABASE_URL` — Supabase project URL.
+- `SUPABASE_SERVICE_ROLE_KEY` — service role key (server only).
+
+In Supabase, run `supabase/schema.sql` once (SQL Editor).
 
 Copy `.env.example` to `.env.local` and fill in all of the above. Restart `npm run dev`
 after changing env vars.
@@ -57,16 +67,15 @@ Visit `http://localhost:3000` and click **Continue with Google**.
 
 ## Data model
 
-See **[DATA.md](./DATA.md)** for how SQLite tables relate to Google Drive, what is written
-on each action, and how this would map to Supabase later.
+See **[DATA.md](./DATA.md)** for how Supabase tables relate to Google Drive and what is written
+on each action.
 
 ## Deployment
 
-See **[DEPLOY.md](./DEPLOY.md)** for host options, Google OAuth production URIs, env vars,
-and step-by-step Railway / Render / VPS / Docker notes.
+See **[DEPLOY.md](./DEPLOY.md)** for Vercel, Google OAuth production URIs, and env vars.
 
-Short version: you need a **persistent disk** (Railway, Render, Fly.io, or a VM). This will
-not run as-is on Vercel or Netlify.
+Short version: host the Next.js app on **Vercel**. Photos stay in Drive; metadata and Google
+tokens stay in Supabase. GitHub Pages will not work (this app needs API routes).
 
 ## Project structure
 

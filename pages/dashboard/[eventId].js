@@ -2,18 +2,16 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import { isSessionValid } from '../../lib/auth';
-import db from '../../lib/db';
+import { getEvent, listContributors } from '../../lib/db';
 
 export async function getServerSideProps({ req, params }) {
   if (!isSessionValid(req.headers.cookie)) {
     return { redirect: { destination: '/login', permanent: false } };
   }
-  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(params.eventId);
+  const event = await getEvent(params.eventId);
   if (!event) return { notFound: true };
 
-  const contributors = db
-    .prepare('SELECT email, invited_at, uploaded_at FROM contributors WHERE event_id = ? ORDER BY email')
-    .all(params.eventId);
+  const contributors = await listContributors(params.eventId);
 
   return { props: { event, contributors } };
 }

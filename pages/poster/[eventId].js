@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import PosterCanvas from '../../components/PosterCanvas';
 import { isSessionValid } from '../../lib/auth';
-import db from '../../lib/db';
+import { getEvent } from '../../lib/db';
 import {
   DEFAULT_PAGE,
   PAGE_PRESETS,
@@ -33,7 +33,7 @@ export async function getServerSideProps({ req, params }) {
   if (!isSessionValid(req.headers.cookie)) {
     return { redirect: { destination: '/login', permanent: false } };
   }
-  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(params.eventId);
+  const event = await getEvent(params.eventId);
   if (!event) return { notFound: true };
   return { props: { event } };
 }

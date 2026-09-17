@@ -1,8 +1,15 @@
 import { useState } from 'react';
-import db from '../../lib/db';
+import { getEvent } from '../../lib/db';
 
 export async function getServerSideProps({ params }) {
-  const event = db.prepare('SELECT id, person_name, message, status FROM events WHERE id = ?').get(params.eventId);
+  const row = await getEvent(params.eventId);
+  if (!row) return { notFound: true };
+  const event = {
+    id: row.id,
+    person_name: row.person_name,
+    message: row.message,
+    status: row.status,
+  };
   if (!event) return { notFound: true };
   return { props: { event } };
 }

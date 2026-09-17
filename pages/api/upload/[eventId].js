@@ -1,6 +1,6 @@
 import formidable from 'formidable';
 import fs from 'fs';
-import db from '../../../lib/db';
+import { getEvent, markContributorUploaded } from '../../../lib/db';
 import { uploadFileToFolder } from '../../../lib/drive';
 import { requireEventOwner } from '../../../lib/google';
 
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { eventId } = req.query;
-  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
+  const event = await getEvent(eventId);
   if (!event) return res.status(404).json({ error: 'This link is no longer valid.' });
   if (event.status !== 'open') {
     return res.status(400).json({ error: 'Submissions for this farewell have been closed.' });
@@ -51,9 +51,7 @@ export default async function handler(req, res) {
 
   const email = (fields.email?.[0] || '').trim().toLowerCase();
   if (email) {
-    db.prepare(
-      `UPDATE contributors SET uploaded_at = datetime('now') WHERE event_id = ? AND email = ?`
-    ).run(eventId, email);
+    await markContributorUploaded(eventId, email);
   }
 
   res.status(200).json({ ok: true });

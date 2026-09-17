@@ -1,8 +1,6 @@
-# Data model — SQLite + Drive
+# Data model — Supabase + Drive
 
-The app uses **two stores**. SQLite is metadata and Google tokens. Google Drive is every photo (and later, a PDF if you add that). Nothing image-binary is written to SQLite.
-
-File on disk: `data/farewell.db` (plus `-wal` / `-shm` while the app is running).
+The app uses **two stores**. Supabase Postgres is metadata and Google tokens. Google Drive is every photo. Nothing image-binary is written to the database.
 
 ---
 
@@ -10,7 +8,7 @@ File on disk: `data/farewell.db` (plus `-wal` / `-shm` while the app is running)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  SQLite  (data/farewell.db)                             │
+│  Supabase Postgres                                      │
 │  google_accounts  HR OAuth tokens + Drive root folder   │
 │  events           farewell record + Drive folder id     │
 │  contributors     who was invited / who uploaded        │
@@ -22,12 +20,11 @@ File on disk: `data/farewell.db` (plus `-wal` / `-shm` while the app is running)
 │  Google Drive  (signed-in HR account)                   │
 │  Farewell Posters/                 ← drive_root_folder  │
 │    └── {person} - {month year}/    ← events.folder_id   │
-│          ├── note-….jpg            ← contributor photos │
-│          └── (optional later) poster.pdf                │
+│          └── note-….jpg            ← contributor photos │
 └─────────────────────────────────────────────────────────┘
 ```
 
-HR login itself is **not** a SQLite row. It is an HMAC cookie (`farewell_session`) that only stores the email. Tokens live in `google_accounts`.
+HR login itself is **not** a database row. It is an HMAC cookie (`farewell_session`) that only stores the email. Tokens live in `google_accounts`.
 
 ---
 
@@ -138,7 +135,7 @@ Created on first **Save** in the poster builder. Until then the builder uses a d
 }
 ```
 
-`x` / `y` / `width` / `height` are pixels on the 150 DPI page, not millimetres. `imageId` is the Drive file id, not a SQLite key.
+`x` / `y` / `width` / `height` are pixels on the 150 DPI page, not millimetres. `imageId` is the Drive file id, not a database key.
 
 ---
 
@@ -150,7 +147,7 @@ Open **[data-lifecycle.mmd](./data-lifecycle.mmd)** in Mermaid Preview if the bl
 sequenceDiagram
   participant HR
   participant App
-  participant DB as SQLite
+  participant DB as Supabase
   participant Drive
   participant Gmail
   participant Contributor
@@ -192,7 +189,7 @@ sequenceDiagram
 
 ---
 
-## What is **not** in SQLite
+## What is **not** in the database
 
 | Data | Where it lives |
 | --- | --- |
@@ -201,20 +198,4 @@ sequenceDiagram
 | Logged-in session | Signed cookie, 7 days |
 | Who may log in | `ALLOWED_GOOGLE_EMAILS` in env, not the db |
 
----
-
-## If you later switch to Supabase
-
-Map tables 1:1. Use **Postgres** for the four tables (especially `google_accounts.refresh_token`). Use **Supabase Storage** only if you want to replace Drive for images — that is a product change (HR would no longer see folders in Drive).
-
-| SQLite | Supabase |
-| --- | --- |
-| `google_accounts` | `google_accounts` (lock this table down; tokens are secrets) |
-| `events` | `events` |
-| `contributors` | `contributors` |
-| `poster_state.layout_json` | `jsonb` column on `events`, or a `poster_state` table |
-| Drive folder + files | Keep Drive, **or** a Storage bucket `events/{id}/` |
-
-You still need the refresh token in Postgres if contributors upload while HR is offline. Storage alone is not enough.
-
-Row Level Security: this app is a shared HR list, so a service-role server (API routes) is simpler than per-user RLS unless you change that rule.
+Create the tables by running `supabase/schema.sql` in the Supabase SQL Editor. Row Level Security is on; the app uses the **service role** key on the server, which bypasses RLS. Do not put that key in the browser.

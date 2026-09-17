@@ -1,8 +1,8 @@
 # Deploying Farewell Notes
 
-This app is a **long-running Node server** with a **SQLite file** on disk. Photos live in Google Drive; the database only stores events, contributors, poster layouts, and the HR Google refresh token.
+Photos live in **Google Drive**. Invites go through **Gmail**. Metadata and the HR Google refresh token live in **Supabase**. Host the Next.js app on **Vercel**.
 
-Pick a host with a **persistent disk**. Do not use Vercel, Netlify, or Cloudflare Pages as-is — their filesystems reset, so logins and farewells would vanish.
+GitHub Pages cannot run this app (it needs API routes).
 
 ---
 
@@ -11,8 +11,7 @@ Pick a host with a **persistent disk**. Do not use Vercel, Netlify, or Cloudflar
 | Item | Why |
 | --- | --- |
 | A public HTTPS URL | Google OAuth and invite/upload links |
-| Persistent disk | `data/farewell.db` (and WAL files) |
-| Node 18+ with build tools | `better-sqlite3` compiles a native addon |
+| Supabase project | Tables from `supabase/schema.sql` |
 | Google OAuth client | Same project you already use locally |
 
 Keep the OAuth app in **Testing**. Adding each HR Gmail as a **test user** is enough. Publishing the app would trigger Google verification for Drive + Gmail, which you do not need.
@@ -21,18 +20,13 @@ Keep the OAuth app in **Testing**. Adding each HR Gmail as a **test user** is en
 
 ## Option comparison
 
-| Option | Fits this app? | Effort | Cost (ballpark) | Notes |
-| --- | --- | --- | --- | --- |
-| **Railway** | Yes | Low | ~$5/mo + volume | Easiest. GitHub → deploy. Attach a volume. |
-| **Render** (Web Service + disk) | Yes | Low | Paid disk required | Similar to Railway. Free web services have no persistent disk. |
-| **Fly.io** | Yes | Medium | Few dollars/mo | Volumes are first-class. Needs a Dockerfile. |
-| **Small VPS** (Hetzner, DigitalOcean, Lightsail) | Yes | Medium–high | ~$4–6/mo | Full control. You install Node, nginx, HTTPS. |
-| **Company VM / existing server** | Yes | Depends | Already paid | Fine if it can run Node 24/7 and keep `data/`. |
-| **Vercel / Netlify / Cloudflare Pages** | **No** | — | — | Serverless + ephemeral disk. SQLite and stored Google tokens would not survive. |
+| Option | Fits this app? | Notes |
+| --- | --- | --- |
+| **Vercel** (Hobby) | Yes | Recommended. Free. Connect the GitHub repo. |
+| **Railway / Render / Fly / VPS** | Yes | No disk needed anymore. Same env vars. |
+| **GitHub Pages** | **No** | Static files only. |
 
-**Recommendation:** Railway if you want this live this afternoon. A cheap VPS if you already SSH into machines and want the lowest long-term cost.
-
-To use Vercel later you would replace SQLite with hosted Postgres. That is a code change, not a config change.
+**Recommendation:** Vercel + free Supabase.
 
 ---
 
@@ -69,15 +63,30 @@ openssl rand -hex 32
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Same as local |
 | `ALLOWED_GOOGLE_EMAILS` | Comma-separated HR emails |
 | `SESSION_SECRET` | Output of `openssl rand -hex 32` |
-| `NEXT_PUBLIC_BASE_URL` | `https://your-app.example.com` (no trailing slash) |
+| `NEXT_PUBLIC_BASE_URL` | `https://your-app.vercel.app` (no trailing slash) |
+| `SUPABASE_URL` | `https://xxxx.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server only) |
 
 `NEXT_PUBLIC_BASE_URL` is used for the Google redirect and for upload links in invite emails. It must match the origin you added in Google Cloud.
 
-`NODE_ENV=production` is set automatically by `next start`. Session cookies then get the `Secure` flag, so **HTTPS is required**.
+`NODE_ENV=production` is set automatically. Session cookies then get the `Secure` flag, so **HTTPS is required**.
 
 ---
 
-## 3. Deploy on Railway (recommended)
+## 3. Deploy on Vercel (recommended)
+
+1. Run `supabase/schema.sql` in the Supabase SQL Editor if you have not already.
+2. [vercel.com](https://vercel.com) → **Add New → Project** → import the GitHub repo.
+3. **Environment variables** — add every row in the table above.  
+   After the first deploy you will get `https://<project>.vercel.app`. Put that in `NEXT_PUBLIC_BASE_URL` and **redeploy**.
+4. Add that origin + `/api/auth/google/callback` in Google Cloud (section 1).
+5. Open the URL → **Continue with Google**. HR must sign in once on production so a refresh token is stored in Supabase. Local tokens do not copy over.
+
+Vercel Hobby limits: request time ~10s, upload body ~4.5MB. Large photos or a long invite list can fail; keep contributor lists small or split sends.
+
+---
+
+## 4. Deploy on Railway
 
 1. Push this repo to GitHub (private is fine).
 2. [railway.app](https://railway.app) → **New project → Deploy from GitHub repo**.
@@ -195,12 +204,11 @@ sudo certbot --nginx -d farewell.example.com
 
 ## 6. Optional: Docker / Fly.io
 
-`better-sqlite3` needs compile tools in the **build** image. Mount a volume on `/app/data`.
+No persistent disk is required. Set the same env vars as Vercel.
 
 ```dockerfile
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
-RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json* ./
 RUN npm ci
 
@@ -278,8 +286,8 @@ Do not commit `data/*.db` to git.
 | `redirect_uri_mismatch` | Production callback URL missing or typo in Google Console |
 | Sign-in works locally, 403 / “access denied” in prod | HR email not a **test user**, or not in `ALLOWED_GOOGLE_EMAILS` |
 | Login cookie missing after Google redirect | Site is HTTP; production cookies require HTTPS |
-| Dashboard empty after every deploy | Volume not mounted on `data/` |
+| Dashboard empty after every deploy | Wrong `SUPABASE_URL` / service role, or schema not run |
 | `Drive setup failed` / invalid grant | HR has not signed in **on production**, or revoked the app in Google Account |
-| `better-sqlite3` build error | Image missing `python3`, `make`, `g++` |
+| `SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set` | Env vars missing; restart after adding them |
 | Uploads fail at ~1MB | Reverse proxy `client_max_body_size` too small |
 | Invites have `localhost` links | `NEXT_PUBLIC_BASE_URL` still local; rebuild after changing it |

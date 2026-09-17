@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid';
-import db from '../../../lib/db';
+import { createEvent, insertContributors, listEvents } from '../../../lib/db';
 import { getSession } from '../../../lib/auth';
 import { createEventFolder } from '../../../lib/drive';
 
@@ -8,9 +8,7 @@ export default async function handler(req, res) {
   if (!session) return res.status(401).json({ error: 'Not logged in.' });
 
   if (req.method === 'GET') {
-    const events = db
-      .prepare('SELECT * FROM events ORDER BY created_at DESC')
-      .all();
+    const events = await listEvents();
     return res.status(200).json({ events });
   }
 
@@ -32,20 +30,15 @@ export default async function handler(req, res) {
     }
 
     const eventId = nanoid(10);
-    db.prepare(
-      `INSERT INTO events (id, person_name, title, message, template_id, folder_id, status, owner_email)
-       VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`
-    ).run(eventId, personName, title, message, 'freeform', folderId, session.email);
-
-    const insertContributor = db.prepare(
-      `INSERT OR IGNORE INTO contributors (id, event_id, email) VALUES (?, ?, ?)`
-    );
-    const insertMany = db.transaction((emails) => {
-      for (const email of emails) {
-        insertContributor.run(nanoid(10), eventId, email.trim().toLowerCase());
-      }
+    await createEvent({
+      id: eventId,
+      personName,
+      title,
+      message,
+      folderId,
+      ownerEmail: session.email,
     });
-    insertMany(contributorEmails.filter(Boolean));
+    await insertContributors(eventId, contributorEmails);
 
     return res.status(201).json({ eventId });
   }

@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import { isSessionValid } from '../../lib/auth';
-import db from '../../lib/db';
+import { listEvents } from '../../lib/db';
 
 export async function getServerSideProps({ req }) {
   if (!isSessionValid(req.headers.cookie)) {
     return { redirect: { destination: '/login', permanent: false } };
   }
-  const events = db.prepare('SELECT * FROM events ORDER BY created_at DESC').all();
+  const events = await listEvents();
   return { props: { events } };
 }
 

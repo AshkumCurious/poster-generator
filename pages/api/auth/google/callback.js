@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     if (!email) return loginError(res, 'no_email');
     if (!isEmailAllowed(email)) return loginError(res, 'not_allowed');
 
-    upsertGoogleAccount({ email, tokens });
+    await upsertGoogleAccount({ email, tokens });
     await ensureDriveRoot(email);
 
     res.setHeader('Set-Cookie', [

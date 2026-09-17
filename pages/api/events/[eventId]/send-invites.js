@@ -1,4 +1,4 @@
-import db from '../../../../lib/db';
+import { getEvent, listContributors, markContributorsInvited } from '../../../../lib/db';
 import { isSessionValid } from '../../../../lib/auth';
 import { sendUploadInvites } from '../../../../lib/mailer';
 import { requireEventOwner } from '../../../../lib/google';
@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { eventId } = req.query;
-  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
+  const event = await getEvent(eventId);
   if (!event) return res.status(404).json({ error: 'Event not found.' });
   if (event.status !== 'open') return res.status(400).json({ error: 'This event is closed for submissions.' });
 
@@ -19,9 +19,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: err.message });
   }
 
-  const contributors = db
-    .prepare('SELECT email FROM contributors WHERE event_id = ?')
-    .all(eventId);
+  const contributors = await listContributors(eventId);
 
   const uploadUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/upload/${eventId}`;
 
@@ -39,14 +37,10 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: `Email sending failed: ${err.message}` });
   }
 
-  const now = new Date().toISOString();
-  const markInvited = db.prepare(
-    'UPDATE contributors SET invited_at = ? WHERE event_id = ? AND email = ?'
+  await markContributorsInvited(
+    eventId,
+    results.filter((r) => !r.error).map((r) => r.email)
   );
-  const markMany = db.transaction((rows) => {
-    for (const r of rows) if (!r.error) markInvited.run(now, eventId, r.email);
-  });
-  markMany(results);
 
   const failed = results.filter((r) => r.error);
   if (failed.length) {
