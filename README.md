@@ -46,8 +46,8 @@ Event folders go inside it. Invites are sent from the same address.
 ### 2. App secrets
 
 - `SESSION_SECRET` — any long random string (`openssl rand -hex 32`).
-- `NEXT_PUBLIC_BASE_URL` — where the app is hosted, no trailing slash. Must match the
-  redirect URI origin.
+- `BASE_URL` — where the app is hosted, no trailing slash. Must match the
+  redirect URI origin. Server-only.
 - `SUPABASE_URL` — Supabase project URL.
 - `SUPABASE_SERVICE_ROLE_KEY` — service role key (server only).
 

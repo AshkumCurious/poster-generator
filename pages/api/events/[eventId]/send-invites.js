@@ -1,7 +1,7 @@
 import { getEvent, listContributors, markContributorsInvited } from '../../../../lib/db';
 import { isSessionValid } from '../../../../lib/auth';
 import { sendUploadInvites } from '../../../../lib/mailer';
-import { requireEventOwner } from '../../../../lib/google';
+import { requireEventOwner, getBaseUrl } from '../../../../lib/google';
 
 export default async function handler(req, res) {
   if (!isSessionValid(req.headers.cookie)) return res.status(401).json({ error: 'Not logged in.' });
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
   const contributors = await listContributors(eventId);
 
-  const uploadUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/upload/${eventId}`;
+  const uploadUrl = `${getBaseUrl()}/upload/${eventId}`;
 
   let results;
   try {

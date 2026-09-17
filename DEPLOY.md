@@ -63,11 +63,11 @@ openssl rand -hex 32
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Same as local |
 | `ALLOWED_GOOGLE_EMAILS` | Comma-separated HR emails |
 | `SESSION_SECRET` | Output of `openssl rand -hex 32` |
-| `NEXT_PUBLIC_BASE_URL` | `https://your-app.vercel.app` (no trailing slash) |
+| `BASE_URL` | `https://your-app.vercel.app` (no trailing slash) |
 | `SUPABASE_URL` | `https://xxxx.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server only) |
 
-`NEXT_PUBLIC_BASE_URL` is used for the Google redirect and for upload links in invite emails. It must match the origin you added in Google Cloud.
+`BASE_URL` is used for the Google redirect and for upload links in invite emails. It must match the origin you added in Google Cloud.
 
 `NODE_ENV=production` is set automatically. Session cookies then get the `Secure` flag, so **HTTPS is required**.
 
@@ -78,7 +78,7 @@ openssl rand -hex 32
 1. Run `supabase/schema.sql` in the Supabase SQL Editor if you have not already.
 2. [vercel.com](https://vercel.com) → **Add New → Project** → import the GitHub repo.
 3. **Environment variables** — add every row in the table above.  
-   After the first deploy you will get `https://<project>.vercel.app`. Put that in `NEXT_PUBLIC_BASE_URL` and **redeploy**.
+   After the first deploy you will get `https://<project>.vercel.app`. Put that in `BASE_URL` and **redeploy**.
 4. Add that origin + `/api/auth/google/callback` in Google Cloud (section 1).
 5. Open the URL → **Continue with Google**. HR must sign in once on production so a refresh token is stored in Supabase. Local tokens do not copy over.
 
@@ -91,9 +91,9 @@ Vercel Hobby limits: request time ~10s, upload body ~4.5MB. Large photos or a lo
 1. Push this repo to GitHub (private is fine).
 2. [railway.app](https://railway.app) → **New project → Deploy from GitHub repo**.
 3. Open the service → **Variables** and add the five env vars above.  
-   `NEXT_PUBLIC_BASE_URL` will be `https://<your-service>.up.railway.app` until you add a custom domain.
+   `BASE_URL` will be `https://<your-service>.up.railway.app` until you add a custom domain.
 4. **Settings → Networking → Generate domain** (or attach your own).
-5. Update `NEXT_PUBLIC_BASE_URL` to that `https://…` URL, then **redeploy** so Next bakes the public URL into the client.
+5. Update `BASE_URL` to that `https://…` URL, then **redeploy**.
 6. **Volumes** → add a volume, mount path:
 
    ```
@@ -124,9 +124,9 @@ npm install && npm run build
 2. Runtime: **Node**. Build: `npm install && npm run build`. Start: `npm run start`.
 3. Instance: any **paid** plan that allows a **persistent disk**.
 4. Add a disk, mount path `/opt/render/project/src/data` (Render’s app root is the repo). Confirm with Render’s docs if the root path differs, then mount so `data/farewell.db` lands on the disk.
-5. Set the same env vars. Use the `onrender.com` URL (or custom domain) as `NEXT_PUBLIC_BASE_URL`.
+5. Set the same env vars. Use the `onrender.com` URL (or custom domain) as `BASE_URL`.
 6. Add that URL to Google OAuth origins + redirect.
-7. Redeploy after changing `NEXT_PUBLIC_BASE_URL`.
+7. Redeploy after changing `BASE_URL`.
 
 ---
 
@@ -262,7 +262,7 @@ Do not commit `data/*.db` to git.
 ## 8. After it is live — checklist
 
 - [ ] `https://your-host` loads the login page
-- [ ] Google origins + redirect URI match `NEXT_PUBLIC_BASE_URL` exactly
+- [ ] Google origins + redirect URI match `BASE_URL` exactly
 - [ ] HR test users are listed on the OAuth consent screen
 - [ ] Sign-in reaches `/dashboard`
 - [ ] Create a test farewell, send an invite, open the upload link on a phone
@@ -290,4 +290,4 @@ Do not commit `data/*.db` to git.
 | `Drive setup failed` / invalid grant | HR has not signed in **on production**, or revoked the app in Google Account |
 | `SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set` | Env vars missing; restart after adding them |
 | Uploads fail at ~1MB | Reverse proxy `client_max_body_size` too small |
-| Invites have `localhost` links | `NEXT_PUBLIC_BASE_URL` still local; rebuild after changing it |
+| Invites have `localhost` links | `BASE_URL` still local; rebuild after changing it |

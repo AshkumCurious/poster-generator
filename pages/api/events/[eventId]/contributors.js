@@ -6,7 +6,7 @@ import {
 } from '../../../../lib/db';
 import { isSessionValid } from '../../../../lib/auth';
 import { sendUploadInvites } from '../../../../lib/mailer';
-import { requireEventOwner } from '../../../../lib/google';
+import { requireEventOwner, getBaseUrl } from '../../../../lib/google';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -69,7 +69,7 @@ export default async function handler(req, res) {
   let sent = 0;
   let failed = [];
   if (added.length) {
-    const uploadUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/upload/${eventId}`;
+    const uploadUrl = `${getBaseUrl()}/upload/${eventId}`;
     try {
       const results = await sendUploadInvites({
         toEmails: added,
